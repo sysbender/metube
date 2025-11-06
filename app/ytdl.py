@@ -259,6 +259,36 @@ class DownloadQueue:
             return
         if self.config.DOWNLOAD_MODE == 'sequential':
             async with self.seq_lock:
+                #----------start from here
+                # STEALTH: human delay + jitter + proxy + UA
+                import os, random, time, logging
+                log = logging.getLogger(__name__)
+
+                # 1️ Human-like random delay
+                base = int(os.getenv("SEQUENTIAL_DELAY", "3600"))
+                jitter = base * float(os.getenv("JITTER_PCT", "10")) / 100
+                delay = max(30, base + random.uniform(-jitter, jitter))
+                log.info(f"Human delay: {delay:.0f}s (±{jitter:.0f}s) — sleeping...")
+                await asyncio.sleep(delay)
+
+                # 2️ Proxy rotation (if environment variable provided)
+                if os.getenv("PROXY_POOL"):
+                    import urllib.request, random
+                    proxy = random.choice([p.strip() for p in os.getenv("PROXY_POOL").split(",") if p.strip()])
+                    opener = urllib.request.build_opener(
+                        urllib.request.ProxyHandler({"http": proxy, "https": proxy})
+                    )
+                    urllib.request.install_opener(opener)
+                    log.info(f"Proxy rotated → {proxy}")
+
+                # 3 User-Agent rotation (optional)
+                if os.getenv("USER_AGENT_ROTATE", "true") == "true":
+                    os.environ["YT_DLP_UA"] = random.choice([
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/129.0 Safari/537.36",
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15",
+                        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148"
+                    ])
+                #---------------end     
                 log.info("Starting sequential download.")
                 await download.start(self.notifier)
                 self._post_download_cleanup(download)
