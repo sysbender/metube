@@ -1,0 +1,17 @@
+version: "3.8"
+services:
+  metube:
+    build: .
+    container_name: metube
+    ports: ["8081:8081"]
+    volumes:
+      - ./downloads:/downloads
+      - ./config/yt-dlp.conf:/app/yt-dlp.conf
+    environment:
+      - DOWNLOAD_MODE=sequential
+      - SEQUENTIAL_DELAY=3600
+      - JITTER_PCT=10
+      - PROXY_POOL=
+      - USER_AGENT_ROTATE=true
+      - YTDLP_ARGS=--config-location /app/yt-dlp.conf
+    restart: unless-stopped
